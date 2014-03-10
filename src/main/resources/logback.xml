@@ -1,0 +1,28 @@
+<!-- Logging configuration for locally running the application (default play configuration) -->
+<configuration scan="true" scanPeriod="30 seconds">
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+        <pattern>%date{ISO8601} %highlight(%-5level) %yellow(%logger{50}) %cyan(%X{sourceThread}) - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>test.log</file>
+    <append>false</append>
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+        <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="reactivemongo" level="TRACE"/>
+  <logger name="akka" level="TRACE"/>
+  <logger name="cycle" level="TRACE"/>
+
+  <root level="trace">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE" />
+  </root>
+
+</configuration>
