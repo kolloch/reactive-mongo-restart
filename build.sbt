@@ -2,6 +2,9 @@ name := "reactive-mongo"
 
 version := "1.0-SNAPSHOT"
 
+// The Typesafe repository
+resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
+
 libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-classic" % "1.1.1",
   ("org.reactivemongo" %% "reactivemongo" % "0.10.0").excludeAll(ExclusionRule(organization = "org.apache.logging.log4j")),

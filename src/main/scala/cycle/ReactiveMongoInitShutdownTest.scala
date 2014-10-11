@@ -1,18 +1,17 @@
 package cycle
 
 import akka.actor.ActorSystem
-import org.slf4j.LoggerFactory
 import reactivemongo.api.collections.default.BSONCollection
 import reactivemongo.api.MongoDriver
 import reactivemongo.bson.BSONDocument
+import reactivemongo.utils.LazyLogger
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import org.jboss.netty.logging.{Slf4JLoggerFactory, InternalLoggerFactory}
 
 object ReactiveMongoInitShutdownTest {
-  private val logger = LoggerFactory.getLogger(getClass)
+  private val logger = LazyLogger("ReactiveMongoInitShutdownTest")
 
-  def completeCycle() {
+  def completeCycle(i: Int) {
     val system = ActorSystem()
 
     import system.dispatcher
@@ -21,28 +20,29 @@ object ReactiveMongoInitShutdownTest {
     val connection = driver.connection(nodes = Seq("localhost"))
     val db = connection.db("test")
 
-    logger.info("before waitForPrimaryResult")
+    println("before waitForPrimaryResult")
 
     val waitForPrimaryResult = Await.result(connection.waitForPrimary(3.seconds), 3.seconds)
 
-    logger.info("waitForPrimaryResult: {}", waitForPrimaryResult)
+    println(s"[cycle #$i] waitForPrimaryResult: $waitForPrimaryResult")
 
     val collection: BSONCollection = db.collection("blubber")
 
     val dbStuffFuture = collection.insert(BSONDocument("_id" -> 1, "hi" -> "stuff"))
       .flatMap { _ =>
-      collection.find(BSONDocument("_id" -> 1)).one[BSONDocument].map { resultDoc =>
-        require(resultDoc.get.getAs[String]("hi").get == "stuff", "unexpected document content: " + resultDoc.get.getAs[String]("hi"))
-      }
-    }
+        collection.find(BSONDocument("_id" -> 1)).one[BSONDocument] }
 
-    Await.result(dbStuffFuture, 3.seconds)
+    val result = Await.result(dbStuffFuture, 3.seconds)
+    require(result.isDefined, "should have found a doc")
+    require(result.get.getAs[String]("hi").exists(_ == "stuff"), "unexpected document content: " + result.get.getAs[String]("hi"))
 
-    logger.info("before askCloseResult")
+    Await.result(collection.remove(BSONDocument("_id" -> 1)), 3.seconds)
+
+    logger.info("[cycle #$i] before askCloseResult")
 
     val askCloseResult = Await.result(connection.askClose()(3.seconds), 3.seconds)
 
-    logger.info("askCloseResult: {}", askCloseResult)
+    logger.info(s"askCloseResult: $askCloseResult")
 
     logger.info("before actor system shutdown")
     system.shutdown()
@@ -51,10 +51,12 @@ object ReactiveMongoInitShutdownTest {
   }
 
   def main(args: Array[String]) {
-    InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
 
-    for (_ <- 1 to 100) {
-      completeCycle()
+    for(j <- 1 to 100) {
+      println(s"~~~~~ Runnning Test #$j ~~~~~")
+      for (i <- 1 to 100) {
+        completeCycle(j * i)
+      }
     }
   }
 }
